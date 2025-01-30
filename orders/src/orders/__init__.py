@@ -148,7 +148,7 @@ def update_cart_totals(ctx, cart):
 
 @resonate.register
 def get_customer_orders(ctx, customer_email):
-    logger.info(f"getting order history for customer: {customer_email}")
+    logger.info(f"Getting order history for customer: {customer_email}")
     try:
         db = ctx.get_dependency("orders-db")
 
@@ -156,55 +156,28 @@ def get_customer_orders(ctx, customer_email):
         db.row_factory = sqlite3.Row
         stmt = db.cursor()
 
-        # Fetch orders for the given customer, excluding those with 'cart' status
+        # Fetch orders for the given customer, excluding 'cart' status
         stmt.execute(
-            "SELECT * FROM orders WHERE customer_email = ? AND order_status != 'cart'",
+            "SELECT * FROM orders WHERE customer_email = ? AND order_status != 'cart' ORDER BY order_date DESC",
             (customer_email,),
         )
         orders = stmt.fetchall()
 
-        # For each order, fetch the corresponding order_items
+        # Convert orders into dictionaries dynamically
         orders_with_items = []
         for order in orders:
+            order_dict = dict(order)  # Convert SQLite Row object to a dictionary
             order_id = order["order_id"]
 
             # Fetch order items for the current order_id
             stmt.execute("SELECT * FROM order_items WHERE order_id = ?", (order_id,))
             items = stmt.fetchall()
 
-            # Append the order with items to the orders_with_items list
-            orders_with_items.append(
-                {
-                    "order_id": order["order_id"],
-                    "order_status": order["order_status"],
-                    "order_total": order["order_total"],
-                    "customer_email": order["customer_email"],
-                    "order_date": order["order_date"],
-                    "payment_confirmation_promise_id": order[
-                        "payment_confirmation_promise_id"
-                    ],
-                    "restaurant_confirmation_promise_id": order[
-                        "restaurant_confirmation_promise_id"
-                    ],
-                    "out_for_delivery_promise_id": order["out_for_delivery_promise_id"],
-                    "driver_confirmation_promise_id": order[
-                        "driver_confirmation_promise_id"
-                    ],
-                    "delivery_confirmation_promise_id": order[
-                        "delivery_confirmation_promise_id"
-                    ],
-                    "order_items": [
-                        {
-                            "item_id": item["item_id"],
-                            "product_name": item["product_name"],
-                            "product_display": item["product_display"],
-                            "product_price": item["product_price"],
-                            "product_image": item["product_image"],
-                        }
-                        for item in items
-                    ],
-                }
-            )
+            # Convert items into dictionaries dynamically
+            order_dict["order_items"] = [dict(item) for item in items]
+
+            # Append to the list
+            orders_with_items.append(order_dict)
 
         return {
             "success": True,
@@ -212,7 +185,7 @@ def get_customer_orders(ctx, customer_email):
             "orders": orders_with_items,
         }
     except Exception as e:
-        error_message = f"error retrieving order history for {customer_email}: {str(e)}"
+        error_message = f"Error retrieving order history for {customer_email}: {str(e)}"
         logger.error(error_message)
         raise Exception(error_message)
 

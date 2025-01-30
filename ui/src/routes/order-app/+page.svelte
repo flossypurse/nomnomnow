@@ -13,6 +13,7 @@
     products: [],
   });
   let isLoggedIn = writable(false);
+  let autoRefresh = writable(false);
 
   let paymentModalOrder = writable(null);
   let isPaymentModalOpen = false;
@@ -67,8 +68,8 @@
 
   let pollingInterval = null;
 
-  isLoggedIn.subscribe((loggedIn) => {
-    if (loggedIn) {
+  autoRefresh.subscribe((refresh) => {
+    if (refresh) {
       startPolling();
     } else {
       stopPolling();
@@ -96,6 +97,10 @@
       clearInterval(pollingInterval);
       pollingInterval = null; // Reset interval ID
     }
+  }
+
+  function handleRefreshSwitch() {
+    autoRefresh.update((value) => !value);
   }
 
   function togglePaymentModal() {
@@ -301,9 +306,12 @@
           Logout
         </button>
         <button
-          on:click={() =>
-            handleGetCustomerView($customerView.customer.customer_email)}
-          class="bg-slate-700 text-white px-4 py-2 rounded hover:bg-slate-800 font-light"
+          on:click={handleRefreshSwitch}
+          class="text-white px-4 py-2 rounded"
+          class:bg-red-700={$autoRefresh}
+          class:bg-slate-700={!$autoRefresh}
+          class:hover\:bg-red-800={$autoRefresh}
+          class:hover\:bg-slate-800={!$autoRefresh}
         >
           Refresh
         </button>

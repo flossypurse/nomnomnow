@@ -8,6 +8,8 @@
     deliveries: [],
   });
 
+  let autoRefresh = writable(false);
+
   onMount(() => {
     (async () => {
       isLoading.set(true);
@@ -24,11 +26,18 @@
         await getDriverView();
       }
       isLoading.set(false);
-      startPolling();
     })();
   });
 
   let pollingInterval = null;
+
+  autoRefresh.subscribe((refresh) => {
+    if (refresh) {
+      startPolling();
+    } else {
+      stopPolling();
+    }
+  });
 
   function startPolling() {
     // Avoid starting multiple intervals
@@ -48,6 +57,10 @@
       clearInterval(pollingInterval);
       pollingInterval = null; // Reset interval ID
     }
+  }
+
+  function handleRefreshSwitch() {
+    autoRefresh.update((value) => !value);
   }
 
   async function handleGetDriverView() {
@@ -105,8 +118,12 @@
       Orders to be delivered
     </h1>
     <button
-      on:click={handleGetDriverView()}
-      class="bg-slate-700 text-white px-4 py-2 rounded hover:bg-slate-800"
+      on:click={handleRefreshSwitch}
+      class="text-white px-4 py-2 rounded"
+      class:bg-red-700={$autoRefresh}
+      class:bg-slate-700={!$autoRefresh}
+      class:hover\:bg-red-800={$autoRefresh}
+      class:hover\:bg-slate-800={!$autoRefresh}
     >
       Refresh
     </button>
@@ -115,75 +132,79 @@
     {#if $driverView.deliveries.length > 0}
       <div class="space-y-4">
         {#each $driverView.deliveries as order}
-          <div
-            class="border rounded-lg shadow p-4 flex justify-between items-center"
-          >
-            <!-- Order Details -->
-            <div>
-              <p class="text-lg font-bold text-slate-800">
-                Order ID: {order.order_id}
-              </p>
-              <p class="text-sm text-slate-600">
-                Order date: {order.order_date}
-              </p>
-              <p class="text-sm text-slate-600">
-                Customer name: {order.customer_name}
-              </p>
-              <p class="text-sm text-slate-600">
-                Customer email: {order.customer_email}
-              </p>
-              <p class="text-sm text-slate-600">
-                Delivery address: {order.customer_delivery_address}
-              </p>
-              <p class="mt-2 text-slate-700 font-semibold">Items:</p>
-              <div class="mt-2 space-y-2">
-                {#each order.order_items as item}
-                  <div class="border rounded shadow-sm p-2 bg-slate-50">
-                    <p class="font-medium text-slate-800">
-                      {item.product_display}
-                    </p>
-                    <img
-                      src={item.product_image}
-                      alt={item.product_display}
-                      class="w-16 h-16 object-cover rounded mt-2"
-                    />
-                  </div>
-                {/each}
+          <div class="border rounded-lg shadow p-4 flex flex-col gap-4">
+            <!-- Status Banners -->
+            {#if order.order_status === "ready_for_pickup"}
+              <div class="w-full bg-slate-700 p-4 rounded text-center">
+                <p class="text-white font-semibold">Ready for Pickup</p>
               </div>
-            </div>
-
-            <!-- Conditional Buttons -->
-            <div>
-              {#if order.order_status === "restaurant_confirmed"}
-                <button
-                  class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-                  on:click={() =>
-                    handleConfirmOrder(order.driver_confirmation_promise_id)}
-                >
-                  Accept Delivery
-                </button>
-              {:else if order.order_status === "driver_confirmed"}
-                <p class="bg-slate-700 text-white px-4 py-2 rounded">
+            {/if}
+            {#if order.order_status === "driver_confirmed"}
+              <div class="w-full bg-slate-700 p-4 rounded text-center">
+                <p class="text-white font-semibold">
                   You have confirmed.<br />
                   Order will be ready for pickup soon.
                 </p>
-              {:else if order.order_status === "ready_for_pickup"}
-                <p
-                  class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-                >
-                  Ready for Pickup
+              </div>
+            {/if}
+
+            <!-- Order Details -->
+            <div class="flex justify-between items-center">
+              <div>
+                <p class="text-lg font-bold text-slate-800">
+                  Order ID: {order.order_id}
                 </p>
-              {:else if order.order_status === "out_for_delivery"}
-                <button
-                  class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-                  on:click={() =>
-                    handleMarkOrderDelivered(
-                      order.delivery_confirmation_promise_id
-                    )}
-                >
-                  Mark as Delivered
-                </button>
-              {/if}
+                <p class="text-sm text-slate-600">
+                  Order date: {order.order_date}
+                </p>
+                <p class="text-sm text-slate-600">
+                  Customer name: {order.customer_name}
+                </p>
+                <p class="text-sm text-slate-600">
+                  Customer email: {order.customer_email}
+                </p>
+                <p class="text-sm text-slate-600">
+                  Delivery address: {order.customer_delivery_address}
+                </p>
+                <p class="mt-2 text-slate-700 font-semibold">Items:</p>
+                <div class="mt-2 space-y-2">
+                  {#each order.order_items as item}
+                    <div class="border rounded shadow-sm p-2 bg-slate-50">
+                      <p class="font-medium text-slate-800">
+                        {item.product_display}
+                      </p>
+                      <img
+                        src={item.product_image}
+                        alt={item.product_display}
+                        class="w-16 h-16 object-cover rounded mt-2"
+                      />
+                    </div>
+                  {/each}
+                </div>
+              </div>
+
+              <!-- Conditional Buttons -->
+              <div>
+                {#if order.order_status === "restaurant_confirmed"}
+                  <button
+                    class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                    on:click={() =>
+                      handleConfirmOrder(order.driver_confirmation_promise_id)}
+                  >
+                    Accept Delivery
+                  </button>
+                {:else if order.order_status === "out_for_delivery"}
+                  <button
+                    class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                    on:click={() =>
+                      handleMarkOrderDelivered(
+                        order.delivery_confirmation_promise_id
+                      )}
+                  >
+                    Mark as Delivered
+                  </button>
+                {/if}
+              </div>
             </div>
           </div>
         {/each}
