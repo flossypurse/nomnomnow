@@ -50,51 +50,46 @@ def order_workflow(ctx, data):
         logger.info("---------------------------------------------")
         logger.info(f"order workflow started for order: {order_id}")
         logger.info("---------------------------------------------")
+
         result = yield ctx.rfc("get_order_by_id", order_id).options(
             send_to=poll("orders-service-nodes")
         )
         logger.info(result["message"])
         order = result["order"]
+
         result = yield ctx.rfc("get_customer", order["customer_email"]).options(
             send_to=poll("customers-service-nodes")
         )
         logger.info(result["message"])
         customer = result["customer"]
+
         order["order_status"] = "payment_required"
         order["customer_name"] = customer["customer_name"]
         order["customer_delivery_address"] = customer["customer_delivery_address"]
-        order["payment_confirmation_promise_id"] = data[
-            "payment_confirmation_promise_id"
-        ]
-        order["restaurant_confirmation_promise_id"] = data[
-            "restaurant_confirmation_promise_id"
-        ]
-        order["driver_confirmation_promise_id"] = data["driver_confirmation_promise_id"]
-        order["ready_for_pickup_promise_id"] = data["ready_for_pickup_promise_id"]
-        order["out_for_delivery_promise_id"] = data["out_for_delivery_promise_id"]
-        order["delivery_confirmation_promise_id"] = data[
-            "delivery_confirmation_promise_id"
-        ]
-
         payment_confirmation_promise = yield ctx.rfi(
-            DurablePromise(id=order["payment_confirmation_promise_id"])
+            DurablePromise(id=None)
         )
+        order["payment_confirmation_promise_id"] = payment_confirmation_promise.id
         restaurant_confirmation_promise = yield ctx.rfi(
-            DurablePromise(id=order["restaurant_confirmation_promise_id"])
+            DurablePromise(id=None)
         )
+        order["restaurant_confirmation_promise_id"] = restaurant_confirmation_promise.id
         ready_for_pickup_promise = yield ctx.rfi(
-            DurablePromise(id=order["ready_for_pickup_promise_id"])
+            DurablePromise(id=None)
         )
+        order["ready_for_pickup_promise_id"] = ready_for_pickup_promise.id
         driver_confirmation_promise = yield ctx.rfi(
-            DurablePromise(id=order["driver_confirmation_promise_id"])
+            DurablePromise(id=None)
         )
+        order["driver_confirmation_promise_id"] = driver_confirmation_promise.id
         out_for_delivery_promise = yield ctx.rfi(
-            DurablePromise(id=order["out_for_delivery_promise_id"])
+            DurablePromise(id=None)
         )
+        order["out_for_delivery_promise_id"] = out_for_delivery_promise.id
         delivery_confirmation_promise = yield ctx.rfi(
-            DurablePromise(id=order["delivery_confirmation_promise_id"])
+            DurablePromise(id=None)
         )
-
+        order["delivery_confirmation_promise_id"] = delivery_confirmation_promise.id
         result = yield ctx.rfc("update_order_by_id", order).options(
             send_to=poll("orders-service-nodes")
         )
@@ -462,84 +457,9 @@ def checkout_route_handler():
             error_message = "missing 'customer_email' or 'order_id' in request data"
             logger.error(error_message)
             return jsonify({"error": error_message}), 400
+
         customer_email = data["customer_email"]
         order_id = data["order_id"]
-
-        payment_confirmation_promise_id = f"order_workflow-{customer_email}-order-{order_id}-payment_confirmation_promise"
-        payment_confirmation_promise = store.promises.create(
-            id=payment_confirmation_promise_id,
-            ikey=string_to_uuid(payment_confirmation_promise_id),
-            strict=False,
-            headers=None,
-            data=None,
-            timeout=sys.maxsize,
-            tags=None,
-        )
-        data["payment_confirmation_promise_id"] = payment_confirmation_promise.id
-
-        restaurant_confirmation_promise_id = f"order_workflow-{customer_email}-order-{order_id}-restaurant_confirmation_promise"
-        restaurant_confirmation_promise = store.promises.create(
-            id=restaurant_confirmation_promise_id,
-            ikey=string_to_uuid(restaurant_confirmation_promise_id),
-            strict=False,
-            headers=None,
-            data=None,
-            timeout=sys.maxsize,
-            tags=None,
-        )
-        data["restaurant_confirmation_promise_id"] = restaurant_confirmation_promise.id
-
-        driver_confirmation_promise_id = f"order_workflow-{customer_email}-order-{order_id}-driver_confirmation_promise"
-        driver_confirmation_promise = store.promises.create(
-            id=driver_confirmation_promise_id,
-            ikey=string_to_uuid(driver_confirmation_promise_id),
-            strict=False,
-            headers=None,
-            data=None,
-            timeout=sys.maxsize,
-            tags=None,
-        )
-        data["driver_confirmation_promise_id"] = driver_confirmation_promise.id
-
-        ready_for_pickup_promise_id = (
-            f"order_workflow-{customer_email}-order-{order_id}-ready_for_pickup_promise"
-        )
-        ready_for_pickup_promise = store.promises.create(
-            id=ready_for_pickup_promise_id,
-            ikey=string_to_uuid(ready_for_pickup_promise_id),
-            strict=False,
-            headers=None,
-            data=None,
-            timeout=sys.maxsize,
-            tags=None,
-        )
-        data["ready_for_pickup_promise_id"] = ready_for_pickup_promise.id
-
-        out_for_delivery_promise_id = (
-            f"order_workflow-{customer_email}-order-{order_id}-out_for_delivery_promise"
-        )
-        out_for_delivery_promise = store.promises.create(
-            id=out_for_delivery_promise_id,
-            ikey=string_to_uuid(out_for_delivery_promise_id),
-            strict=False,
-            headers=None,
-            data=None,
-            timeout=sys.maxsize,
-            tags=None,
-        )
-        data["out_for_delivery_promise_id"] = out_for_delivery_promise.id
-
-        delivery_confirmation_promise_id = f"order_workflow-{customer_email}-order-{order_id}-delivery_confirmation_promise"
-        delivery_confirmation_promise = store.promises.create(
-            id=delivery_confirmation_promise_id,
-            ikey=string_to_uuid(delivery_confirmation_promise_id),
-            strict=False,
-            headers=None,
-            data=None,
-            timeout=sys.maxsize,
-            tags=None,
-        )
-        data["delivery_confirmation_promise_id"] = delivery_confirmation_promise.id
 
         _ = order_workflow.run(
             f"start-order-workflow-{customer_email}-order-{order_id}", data
@@ -547,9 +467,7 @@ def checkout_route_handler():
         return (
             jsonify(
                 {
-                    "payment_confirmation_promise_id": data[
-                        "payment_confirmation_promise_id"
-                    ]
+                    "message": "order workflow started",
                 }
             ),
             200,
@@ -616,6 +534,7 @@ def customer_view_handler():
         timestamp = int(time.time())
         promise_id = f"get-customer-view-{customer_email}-{timestamp}"
         handle = get_customer_view_workflow.run(promise_id, customer_email)
+        print(handle.result())
         return jsonify(handle.result()), 200
     except Exception as e:
         logger.error(e)

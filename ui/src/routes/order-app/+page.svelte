@@ -14,6 +14,10 @@
   });
   let isLoggedIn = writable(false);
   let autoRefresh = writable(false);
+  let monitorCheckOut = writable({
+    monitor: false,
+    order_id: null,
+  });
 
   let paymentModalOrder = writable(null);
   let isPaymentModalOpen = false;
@@ -101,6 +105,43 @@
 
   function handleRefreshSwitch() {
     autoRefresh.update((value) => !value);
+  }
+
+  let checkOutMonitor = null;
+
+  monitorCheckOut.subscribe((monitor) => {
+    if (monitor.monitor) {
+      startCheckOutMonitor(monitor.order_id);
+    } else if (checkOutMonitor) {
+      clearInterval(checkOutMonitor);
+      checkOutMonitor = null;
+    }
+  });
+
+  function startCheckOutMonitor(order_id) {
+    if (checkOutMonitor) return; // Prevent multiple intervals
+
+    checkOutMonitor = setInterval(() => {
+      const order = $customerView.orders.find((o) => o.order_id === order_id);
+
+      if (order) {
+        console.log("Checkout completed for order:", order_id);
+
+        // Stop monitoring
+        monitorCheckOut.set({ monitor: false, order_id: null });
+        isLoading.set(false);
+
+        clearInterval(checkOutMonitor);
+        checkOutMonitor = null;
+      }
+    }, 1000);
+  }
+
+  function handleCheckOutMonitorSwitch(order) {
+    monitorCheckOut.set({
+      monitor: !monitorCheckOut.monitor,
+      order_id: order.order_id,
+    });
   }
 
   function togglePaymentModal() {
@@ -195,7 +236,10 @@
   async function handleStartCheckOut(order) {
     isLoading.set(true);
     const result = await startCheckOut(order);
-    isLoading.set(false);
+    monitorCheckOut.set({
+      monitor: true,
+      order_id: order.order_id,
+    });
   }
 
   async function handlePayForOrder(order) {
@@ -313,7 +357,15 @@
           class:hover\:bg-red-800={$autoRefresh}
           class:hover\:bg-slate-800={!$autoRefresh}
         >
-          Refresh
+          Auto Refresh
+        </button>
+        <button
+          on:click={handleGetCustomerView(
+            $customerView.customer.customer_email
+          )}
+          class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+        >
+          Refresh Data
         </button>
       </div>
     </div>
@@ -418,9 +470,7 @@
                   Order date: {order.order_date}
                 </p>
                 <p class="text-sm text-gray-600">Total: ${order.order_total}</p>
-                <p class="text-sm text-gray-600">
-                  {order.payment_confirmation_promise_id}
-                </p>
+
                 {#if order.order_status === "payment_required"}
                   <button
                     class="mt-4 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
@@ -576,7 +626,9 @@
     </div>
   {:else}
     <div>
-      <h2 class="text-xl mb-4">Login or Create an Account</h2>
+      <h2 class="text-4xl font-bold mt-8 mb-4 text-slate-700">
+        Login or Create an Account
+      </h2>
       <div class="flex flex-col gap-4">
         <!-- Login Form -->
         <div>

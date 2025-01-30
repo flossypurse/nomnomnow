@@ -36,15 +36,16 @@ def start_customer_db():
 
 @resonate.register
 def get_customer(ctx, customer_email):
-    print(f"Getting customer with email {customer_email}")
-    db = ctx.get_dependency("customer-db")
     try:
+        logger.info(f"getting customer with email {customer_email}")
+        db = ctx.get_dependency("customer-db")
         stmt = db.cursor()
         stmt.execute(
             "SELECT * FROM customers WHERE customer_email = ?", (customer_email,)
         )
         columns = [column[0] for column in stmt.description]
         customers = [dict(zip(columns, row)) for row in stmt.fetchall()]
+        print(customers)
         if not customers:
             return {"success": False, "message": "Customer not found"}
         return {"success": True, "customer": customers[0], "message": "Customer found"}
@@ -55,8 +56,10 @@ def get_customer(ctx, customer_email):
 
 @resonate.register
 def create_customer(ctx, data):
-    db = ctx.get_dependency("customer-db")
+   
     try:
+        logger.info("creating customer with email {data['customer_email']}")
+        db = ctx.get_dependency("customer-db")
         stmt = db.cursor()
 
         stmt.execute(

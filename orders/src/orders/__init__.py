@@ -62,11 +62,13 @@ def start_orders_db():
 def add_to_cart_workflow(ctx, data):
     try:
         logger.info(f"add_to_cart_workflow started for order: {data['order_id']}")
+        print(data)
         add_to_cart_result = yield ctx.lfc(add_to_cart, data)
         logger.info(add_to_cart_result["message"])
         get_cart_result = yield ctx.lfc(get_or_create_cart, data["customer_email"])
         logger.info(get_cart_result["message"])
         cart = get_cart_result["cart"]
+        print(cart)
         cart = yield ctx.lfc(update_cart_totals, cart)
         return {
             "success": True,
@@ -115,7 +117,7 @@ def remove_from_cart_workflow(ctx, data):
         logger.info(f"remove_from_cart_workflow started for order: {data['order_id']}")
         remove_from_cart_result = yield ctx.lfc(remove_from_cart, data)
         logger.info(remove_from_cart_result["message"])
-        get_cart_result = yield ctx.lfc("get_or_create_cart", data["customer_email"])
+        get_cart_result = yield ctx.lfc(get_or_create_cart, data["customer_email"])
         logger.info(get_cart_result["message"])
         cart = get_cart_result["cart"]
         cart = yield ctx.lfc(update_cart_totals, cart)
@@ -131,6 +133,7 @@ def remove_from_cart_workflow(ctx, data):
 
 @resonate.register
 def update_cart_totals(ctx, cart):
+    print(cart)
     try:
         cart_item_count = len(cart["items"])
         cart["cart_item_count"] = cart_item_count

@@ -210,7 +210,7 @@
         {/each}
       </div>
     {:else}
-      <p class="text-slate-700">No orders in progress.</p>
+      <p class="text-xl font-light text-slate-700">No orders in progress.</p>
     {/if}
   </div>
 </div>

@@ -283,7 +283,7 @@
         {/each}
       </div>
     {:else}
-      <p class="text-slate-700">No orders in progress.</p>
+      <p class="text-xl font-light text-slate-700">No orders in progress.</p>
     {/if}
   </div>
   <h1 class="text-4xl text-slate-700 font-bold mt-8 mb-4">Manage Products</h1>
@@ -374,7 +374,7 @@
         {/each}
       </ul>
     {:else}
-      <p>No customers found.</p>
+      <p class="text-xl font-light text-slate-700">No customers found.</p>
     {/if}
   </div>
 </div>
